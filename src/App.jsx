@@ -6,10 +6,10 @@ import axios from "axios";
 const selectOptions = [
   { value: "", label: "Selecione uma opção" },
   { value: "v", label: "Vídeo" },
-  { value: "a", label: "Áudio" }
+  { value: "a", label: "Áudio" },
 ];
 
-const url = "http://localhost:8000";
+const apiUrl = "https://yt-downloader-online-api.onrender.com";
 
 function App() {
   const [downloadLink, setDownloadLink] = useState("");
@@ -18,34 +18,42 @@ function App() {
 
   async function handleSubmit(element) {
     element.preventDefault();
-    
+
     if (!downloadLink || !selectedOption.value) {
       alert("Preencha todos os campos!");
       return;
     }
 
-    const mediaType = selectedOption.value === "v" ? "video" : "audio";
+    try {
+      const mediaType = selectedOption.value === "v" ? "video" : "audio";
 
-    setIsLoading(true);
+      setIsLoading(true);
 
-    const response = await axios.post(
-      `${url}/api/${mediaType}/download/`,
-      { url: downloadLink },
-    );
+      const response = await axios.post(
+        `${apiUrl}/api/${mediaType}/download/`,
+        { url: downloadLink }
+      );
 
-    setIsLoading(false);
+      setIsLoading(false);
+      
+      const { filename, path } = response.data;
 
-    const downloadPath = response.data.path;
+      const blobResponse = await axios.get(`${apiUrl}${path}`, {
+        responseType: "blob",
+      });
+      const blobUrl = window.URL.createObjectURL(new Blob([blobResponse.data]));
 
-    const blobResponse = await axios.get(`${url}${downloadPath}`, {responseType: 'blob'});
-    const blobUrl = window.URL.createObjectURL(new Blob([blobResponse.data]));
-    
-    const blobLink = document.createElement('a');
-    blobLink.href = blobUrl;
-    blobLink.setAttribute('download', 'file.mp4');
-    document.body.appendChild(blobLink);
-    blobLink.click();
+      const downloadFileLink = document.createElement("a");
+      downloadFileLink.href = blobUrl;
+      downloadFileLink.download = filename;
 
+      document.body.appendChild(downloadFileLink);
+      downloadFileLink.click();
+      document.body.removeChild(downloadFileLink);
+    } catch (e) {
+      alert(`Ocorreu um erro inesperado: ${e.stack + e.name + e.message}`);
+      console.log(`Ocorreu um erro inesperado: ${e.stack + e.name + e.message}`);
+    }
     setDownloadLink("");
     setSelectedOption(selectOptions[0]);
   }
@@ -60,7 +68,7 @@ function App() {
             type="text"
             placeholder="Digite o link para download"
             value={downloadLink}
-            onChange={e => setDownloadLink(e.target.value)}
+            onChange={(e) => setDownloadLink(e.target.value)}
           />
           <Select
             options={selectOptions}
@@ -68,7 +76,12 @@ function App() {
             value={selectedOption}
             onChange={setSelectedOption}
           />
-          <input className={style.submit} type="submit" value={isLoading ? "Carregando..." : "Download"} />
+          <input
+            className={style.submit}
+            type="submit"
+            value={isLoading ? "Carregando..." : "Download"}
+            disabled={ isLoading }
+          />
         </form>
       </main>
     </>
