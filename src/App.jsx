@@ -2,14 +2,18 @@ import style from "./App.module.css";
 import Select from "react-select";
 import { useState } from "react";
 import axios from "axios";
+import downloadFile from "./services/downloadFileService";
+
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const selectOptions = [
   { value: "", label: "Selecione uma opção" },
-  { value: "v", label: "Vídeo" },
-  { value: "a", label: "Áudio" },
+  { value: "video", label: "Vídeo" },
+  { value: "audio", label: "Áudio" },
 ];
 
-const apiUrl = "https://yt-downloader-online-api.onrender.com";
+const apiUrl = "http://localhost:8000";
 
 function App() {
   const [downloadLink, setDownloadLink] = useState("");
@@ -20,46 +24,38 @@ function App() {
     element.preventDefault();
 
     if (!downloadLink || !selectedOption.value) {
-      alert("Preencha todos os campos!");
+      toast.error("Preencha todos os campos!", );
       return;
     }
 
-    try {
-      const mediaType = selectedOption.value === "v" ? "video" : "audio";
+    const mediaType = selectedOption.value;
 
+    try {
       setIsLoading(true);
 
       const response = await axios.post(
         `${apiUrl}/api/${mediaType}/download/`,
         { url: downloadLink }
       );
-
-      setIsLoading(false);
-      
       const { filename, path } = response.data;
 
-      const blobResponse = await axios.get(`${apiUrl}${path}`, {
-        responseType: "blob",
-      });
-      const blobUrl = window.URL.createObjectURL(new Blob([blobResponse.data]));
+      setIsLoading(false);
 
-      const downloadFileLink = document.createElement("a");
-      downloadFileLink.href = blobUrl;
-      downloadFileLink.download = filename;
+      await downloadFile(apiUrl, path, filename);
 
-      document.body.appendChild(downloadFileLink);
-      downloadFileLink.click();
-      document.body.removeChild(downloadFileLink);
-    } catch (e) {
-      alert(`Ocorreu um erro inesperado: ${e.stack + e.name + e.message}`);
-      console.log(`Ocorreu um erro inesperado: ${e.stack + e.name + e.message}`);
+      toast.success("Download feito com sucesso!");
+    } catch (error) {
+      toast.error(`Ocorreu um erro inesperado: ${error.response.data.msg}`)
     }
+  
     setDownloadLink("");
+    setIsLoading(false);
     setSelectedOption(selectOptions[0]);
   }
 
   return (
     <>
+      <ToastContainer />
       <main className={style.main}>
         <form className={style.form} onSubmit={handleSubmit}>
           <h1>YTDownloader</h1>
